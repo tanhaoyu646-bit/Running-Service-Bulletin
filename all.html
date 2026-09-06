@@ -1,0 +1,989 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>运行揭示出勤核对综合训练系统 V1.3.0</title>
+<style>
+:root{
+  --blue:#0c6eb8;--blue2:#075391;--blue3:#0b87d1;
+  --panel:#f5f7fa;--line:#b8c4ce;--ink:#1b2732;--muted:#637383;
+  --green:#bff1bf;--green-deep:#218838;--red:#ffc8c8;--red-deep:#bb2d3b;
+  --yellow:#fff0a8;--yellow-deep:#946c00;--screen:#eaf7ff;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif;color:var(--ink);background:#d7dde3}
+button,input,select{font:inherit}
+button{cursor:pointer}
+.app{min-height:100vh;display:grid;grid-template-rows:auto auto 1fr;background:linear-gradient(180deg,#dbe7f0,#c9d3db)}
+.topbar{
+  min-height:70px;padding:10px 18px;display:flex;align-items:center;gap:18px;color:#fff;
+  background:linear-gradient(180deg,#0b68ae,#07538f);box-shadow:0 2px 12px rgba(0,0,0,.18)
+}
+.brand{font-size:23px;font-weight:800;letter-spacing:1px;white-space:nowrap}
+.version{font-size:12px;padding:3px 8px;border:1px solid rgba(255,255,255,.45);border-radius:999px;margin-left:5px}
+.top-meta{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.meta-pill{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);padding:6px 10px;border-radius:7px;font-size:13px}
+.teacher-btn{border:1px solid rgba(255,255,255,.55);background:rgba(255,255,255,.10);color:#fff;border-radius:7px;padding:8px 12px}
+
+.steps{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#8ea7b8;border-bottom:1px solid #8ea7b8
+}
+.step{
+  min-height:54px;border:0;background:linear-gradient(#f8fbfd,#e5edf2);color:#365064;
+  display:flex;align-items:center;justify-content:center;gap:9px;font-weight:700;font-size:15px
+}
+.step .num{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;background:#a8bac6;color:#fff}
+.step.active{background:#fff;color:#075b99;box-shadow:inset 0 -4px 0 #0b7ac1}
+.step.active .num{background:#0b7ac1}
+.step.done .num{background:#23914d}
+.step.disabled{opacity:.45;cursor:not-allowed}
+
+.main{padding:14px;min-width:1180px}
+.view{display:none}
+.view.active{display:block}
+.card-shell{background:#fff;border:1px solid #a9b6bf;border-radius:8px;box-shadow:0 8px 26px rgba(23,45,62,.12);overflow:hidden}
+.view-toolbar{
+  padding:10px 14px;background:#f3f6f8;border-bottom:1px solid #cbd5dc;
+  display:flex;align-items:center;gap:10px;min-height:52px
+}
+.view-title{font-size:18px;font-weight:800;color:#24485f}
+.view-sub{font-size:12px;color:#6e7f8d}
+.spacer{flex:1}
+.btn{border:1px solid #9caeb9;background:#fff;color:#29485d;border-radius:6px;padding:8px 13px;font-weight:700}
+.btn:hover{background:#f3f7fa}
+.btn.primary{background:#0d74bc;border-color:#0d74bc;color:#fff}
+.btn.green{background:#46a64f;border-color:#388f41;color:#fff}
+.btn.warn{background:#f0b429;border-color:#d89e17;color:#382a00}
+.btn.danger{background:#c94545;border-color:#b83737;color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.small{font-size:12px;padding:6px 10px}
+
+/* ========== 公布揭示 ========== */
+.board-wrap{padding:14px;background:#aeb7b3}
+.board-shell{
+  position:relative;border:13px solid #5d6668;background:#cbd5cf;box-shadow:0 12px 32px rgba(0,0,0,.22)
+}
+.board{
+  position:relative;padding:62px 34px 36px 116px;min-height:720px;
+  background:
+  linear-gradient(110deg,transparent 0 20%,rgba(255,255,255,.16) 21%,transparent 23% 70%,rgba(255,255,255,.10) 72%,transparent 74%),
+  linear-gradient(#dce4df,#c9d4cd)
+}
+.route-plate{
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  min-width:390px;text-align:center;padding:9px 35px;font:700 28px "SimSun",serif;letter-spacing:4px;
+  color:#5b3d2b;background:linear-gradient(#efb58e,#db8e69);border:4px solid rgba(244,237,216,.9);box-shadow:0 2px 8px rgba(0,0,0,.2)
+}
+.lane{position:relative;padding:20px 5px 28px;min-height:295px}
+.lane+.lane{border-top:2px solid rgba(94,113,103,.46)}
+.lane-label{
+  position:absolute;left:-91px;top:50%;transform:translateY(-50%);writing-mode:vertical-rl;text-orientation:upright;
+  padding:13px 8px;background:#b32226;color:#fff;font-size:29px;font-weight:800;letter-spacing:7px;
+  border:2px solid rgba(255,255,255,.5);box-shadow:0 3px 8px rgba(0,0,0,.22)
+}
+.board-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:23px 19px;align-items:start}
+.notice{
+  position:relative;background:#fff;border:1px solid #91999b;box-shadow:0 3px 8px rgba(0,0,0,.18);
+  min-height:220px;font-family:"SimSun","Songti SC",serif
+}
+.notice::before{content:"";position:absolute;left:0;right:0;top:0;height:7px;background:#2d7fb2}
+.magnet{position:absolute;width:23px;height:23px;top:-13px;left:47%;border-radius:50%;background:#b94343;box-shadow:inset -4px -4px 6px rgba(0,0,0,.2),0 3px 6px rgba(0,0,0,.24);z-index:3}
+.notice-head{text-align:center;font-weight:700;font-size:16px;padding:12px 3px 5px;border-bottom:1px solid #aeb6b8}
+.notice-grid{display:grid;grid-template-columns:48px 60px 64px 1fr;font-size:10px;line-height:1.4}
+.ncell{padding:5px;border-right:1px solid #aeb6b8;border-bottom:1px solid #aeb6b8;min-height:28px}
+.ncell:nth-child(4n){border-right:0}
+.nlabel{display:flex;align-items:center;justify-content:center}
+.nspan3{grid-column:span 3;border-right:0}
+.ncontent-label{min-height:90px}
+.ncontent{grid-column:span 3;border-right:0;min-height:90px;line-height:1.55}
+.sign-row{display:grid;grid-template-columns:40px 1fr 40px 1fr 40px 1fr;font-size:9px}
+.sign-row>div{min-height:27px;padding:3px;display:flex;align-items:center;justify-content:center;border-right:1px solid #aeb6b8}
+.sign-row>div:last-child{border-right:0}
+.stamp{border:2px solid #d43a3a;color:#c22c2c;padding:1px 4px;font:700 10px "KaiTi",serif}
+.teacher-target{outline:4px solid #ffca2c;outline-offset:3px}
+
+/* ========== 学生交付揭示 ========== */
+.paper-stage{padding:22px;background:#e7e7e7;display:flex;justify-content:center;min-height:720px}
+.sheet{
+  position:relative;width:1120px;min-height:760px;background:#fff;padding:52px 76px 64px;
+  box-shadow:0 10px 30px rgba(0,0,0,.16);font-family:"SimSun","Songti SC",serif
+}
+.sheet-watermark{position:absolute;inset:0;display:grid;place-items:center;transform:rotate(-25deg);pointer-events:none;color:rgba(130,0,0,.045);font:800 54px "Microsoft YaHei";letter-spacing:8px}
+.paper-title{text-align:center;font-size:42px;margin:8px 0 48px}
+.paper-route{text-align:center;font-size:24px;margin-bottom:18px}
+.paper-meta{display:flex;justify-content:center;gap:48px;font-size:19px;margin-bottom:50px}
+.paper-items{font-size:24px;line-height:2}
+.paper-item{margin:0 0 13px}
+.item-mark{
+  position:relative;display:inline-flex;width:28px;height:28px;margin-right:6px;border:2px solid transparent;border-radius:50%;
+  align-items:center;justify-content:center;vertical-align:middle;cursor:pointer;transform:rotate(-6deg)
+}
+.item-mark.circled{border-color:#1d4a80}
+.item-mark.checked::after{content:"✓";position:absolute;color:#1d4a80;font:800 29px "KaiTi";left:2px;top:-7px}
+.student-highlight{background:rgba(255,235,59,.64)}
+.paper-help{position:absolute;right:18px;top:15px;font:12px "Microsoft YaHei";color:#888}
+
+/* ========== 验卡机 ========== */
+.validator-stage{padding:18px;background:#cad6df}
+.validator{
+  width:100%;min-height:680px;border:5px solid #0065a7;background:linear-gradient(180deg,#0b75be,#075896);
+  box-shadow:0 10px 26px rgba(0,0,0,.24);color:#073655;overflow:hidden
+}
+.val-top{
+  height:55px;display:flex;align-items:center;padding:0 12px;color:#fff;
+  background:linear-gradient(#0d70b9,#07558f);border-bottom:2px solid #0f8bd6
+}
+.machine-title{
+  background:linear-gradient(#f4f5f5,#cfd7db);border:1px solid #afb8bd;border-radius:5px;
+  color:#0b477c;font-weight:900;font-size:21px;letter-spacing:1px;padding:6px 22px
+}
+.val-clock{margin-left:auto;font-family:Consolas,monospace;font-size:14px}
+.val-control{
+  display:grid;grid-template-columns:82px 78px 1fr 1fr 1fr 1fr 1fr auto;gap:10px;align-items:center;
+  padding:8px 12px;background:linear-gradient(90deg,#0d88cb,#0d75b6);color:#fff
+}
+.big-time{font:24px Consolas,monospace;color:#051f36;text-shadow:0 1px rgba(255,255,255,.4)}
+.ic-unit{display:flex;align-items:center;gap:8px}
+.card-slot{
+  width:62px;height:62px;border-radius:50%;display:grid;place-items:center;
+  background:radial-gradient(circle,#f5c71a 0 17%,#1582c1 18% 30%,#f5c71a 31% 43%,#1582c1 44% 56%,#f5c71a 57%);
+  border:4px solid #e6ba16;box-shadow:0 2px 5px rgba(0,0,0,.25)
+}
+.ic-state{font-size:11px;color:#fff;white-space:nowrap}
+.val-field{display:flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap}
+.val-field select,.val-field input{height:28px;border:1px solid #a7b5bf;background:#eef4f8;color:#19425d;padding:0 6px;min-width:105px}
+.val-btn{border:1px solid #b8c6ce;background:linear-gradient(#fff,#dce4e9);border-radius:3px;padding:8px 17px;color:#23445b;font-weight:700}
+.val-btn.load{background:linear-gradient(#65bd5e,#3d9b3f);color:#fff;border-color:#4a9d46}
+.val-table-wrap{margin:0 5px;background:#edf3f6;min-height:465px;border:1px solid #80a4ba;overflow:auto}
+.val-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px}
+.val-table th{height:28px;background:linear-gradient(#eaf4fb,#cadce8);border:1px solid #9fb5c2;color:#29485c}
+.val-table td{height:31px;border:1px solid #b8c5cd;padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#fff}
+.val-table tr.status-green td{background:var(--green)}
+.val-table tr.status-red td{background:var(--red)}
+.val-table tr.status-yellow td{background:var(--yellow)}
+.row-status{font-weight:800}
+.val-footer{
+  min-height:72px;padding:9px 12px;display:flex;align-items:center;gap:18px;color:#fff;
+  background:linear-gradient(#0b6eb3,#075590)
+}
+.sys-text{font-size:12px;line-height:1.75;min-width:350px}
+.val-actions{margin-left:auto;display:flex;gap:14px}
+.bottom-btn{min-width:98px;padding:10px 15px;border:1px solid #c7d1d7;background:linear-gradient(#fff,#d8e1e7);color:#23435a;font-weight:700;border-radius:3px}
+.legend-box{display:flex;gap:10px;align-items:center;font-size:12px}
+.legend-dot{width:18px;height:12px;border:1px solid rgba(0,0,0,.18)}
+.ic-overlay{
+  position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(3,35,55,.72);z-index:10
+}
+.ic-overlay.show{display:flex}
+.error-box{width:520px;background:#f5f7f9;border:4px solid #be4a4a;box-shadow:0 12px 32px rgba(0,0,0,.35);padding:24px;text-align:center}
+.error-icon{font-size:46px;color:#b62f2f}
+.error-title{font-size:22px;font-weight:900;color:#9c2424;margin:6px 0}
+.error-text{font-size:14px;line-height:1.7;color:#4d5c66;margin-bottom:16px}
+
+/* ========== 模拟机 ========== */
+.sim-stage{padding:20px;background:#1e2f3c}
+.simulator{
+  min-height:670px;border:5px solid #3e5666;background:#0c1720;color:#d9f0ff;box-shadow:0 12px 30px rgba(0,0,0,.35)
+}
+.sim-top{padding:13px 16px;background:#213746;border-bottom:1px solid #476172;display:flex;align-items:center}
+.sim-title{font-size:20px;font-weight:900;letter-spacing:1px}
+.sim-status{margin-left:auto;font:13px Consolas,monospace;color:#8fe3a3}
+.sim-content{display:grid;grid-template-columns:330px 1fr;gap:16px;padding:18px}
+.sim-left{border:1px solid #415664;background:#13232e;padding:16px}
+.sim-device{height:180px;border:1px solid #597483;background:linear-gradient(#1d3442,#10212b);display:grid;place-items:center;text-align:center}
+.sim-card{width:140px;height:88px;border-radius:8px;background:linear-gradient(135deg,#f1c24d,#d79c1b);color:#453200;display:grid;place-items:center;font-weight:900;box-shadow:0 6px 14px rgba(0,0,0,.32)}
+.sim-metrics{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.metric{border:1px solid #425d6c;background:#192d39;padding:12px}
+.metric .v{font:800 27px Consolas;color:#fff}
+.metric .k{font-size:12px;color:#9fb8c8;margin-top:3px}
+.confirm-box{margin-top:14px;border:1px solid #425d6c;background:#192d39;padding:12px;font-size:13px;line-height:1.8}
+.confirm-box label{display:block}
+.sim-right{border:1px solid #415664;background:#13232e;padding:14px;min-width:0}
+.sim-table{width:100%;border-collapse:collapse;font-size:13px}
+.sim-table th{background:#274352;color:#dcecf5;padding:8px;border:1px solid #4b6471}
+.sim-table td{padding:8px;border:1px solid #3c5360;background:#162a35}
+.sim-table tr.ok td{background:#163b28}
+.sim-table tr.bad td{background:#4a2222}
+.sim-table tr.extra td{background:#4a4020}
+.result-banner{margin-top:12px;padding:11px;border:1px solid #4c6674;background:#182c38;font-weight:700}
+.result-banner.ok{border-color:#3e9d5f;color:#93e6aa}
+.result-banner.bad{border-color:#bb5757;color:#ffaaaa}
+
+/* 教师控制 */
+.teacher-panel{
+  position:fixed;z-index:100;right:0;top:0;width:340px;height:100vh;background:#fff;border-left:1px solid #bcc7cf;
+  box-shadow:-8px 0 24px rgba(0,0,0,.18);transform:translateX(100%);transition:.2s;padding:20px;overflow:auto
+}
+.teacher-panel.open{transform:translateX(0)}
+.teacher-panel h3{margin:0 0 6px}
+.teacher-panel p{font-size:12px;color:#6a7883;line-height:1.55}
+.teacher-panel label{display:block;font-size:13px;font-weight:700;margin:12px 0 5px}
+.teacher-panel input,.teacher-panel select{width:100%;height:38px;border:1px solid #aebcc6;border-radius:6px;padding:0 8px}
+.teacher-panel .btn{width:100%;margin-top:9px}
+.rule-note{margin-top:14px;padding:10px;background:#fff8df;border:1px solid #e8d48c;font-size:12px;line-height:1.65;color:#5d4b16}
+
+/* toast */
+.toast{position:fixed;z-index:120;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;transition:.18s;background:#162f42;color:#fff;padding:10px 16px;border-radius:7px;box-shadow:0 5px 16px rgba(0,0,0,.25);font-size:13px}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(max-width:1300px){
+  .board-cards{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .main{min-width:1100px}
+  .val-control{grid-template-columns:82px 78px 1fr 1fr 1fr 1fr}
+}
+
+/* ========== V1.3.0 手机端适配：交付揭示 + IC卡验卡 ========== */
+@media(max-width:720px){
+  html,body{width:100%;max-width:100%;overflow-x:hidden;background:#eef2f5}
+  .app{display:block;min-height:100vh}
+  .topbar{min-height:auto;padding:8px 10px;gap:6px;flex-wrap:wrap}
+  .brand{font-size:16px;white-space:normal;line-height:1.35}
+  .version{font-size:10px}
+  .top-meta{width:100%;margin-left:0;gap:5px;justify-content:flex-start}
+  .meta-pill{padding:4px 6px;font-size:10px}
+  .teacher-btn{margin-left:auto;padding:5px 8px;font-size:11px}
+  .steps{grid-template-columns:repeat(2,1fr)}
+  .step{min-height:46px;font-size:12px;padding:5px}
+  .step .num{width:21px;height:21px;font-size:11px}
+
+  .main{min-width:0!important;width:100%;padding:0}
+  .card-shell{border:0;border-radius:0;box-shadow:none}
+  .view-toolbar{min-height:auto;padding:8px 10px;gap:6px;flex-wrap:wrap}
+  .view-title{font-size:16px}
+  .view-sub{font-size:11px;line-height:1.45}
+  .view-toolbar .spacer{display:none}
+  .view-toolbar>.btn{font-size:11px;padding:6px 8px}
+
+  /* 公布揭示主要用于电脑端；手机端保留可横向浏览，不压缩原有大屏布局 */
+  #view-board .board-wrap{overflow-x:auto;padding:8px}
+  #view-board .board-shell{min-width:1120px}
+
+  /* 交付揭示：手机端直接按屏幕宽度排版 */
+  .paper-stage{padding:0;min-height:0;background:#fff}
+  .sheet{
+    width:100%;min-height:0;padding:26px 14px 38px;
+    box-shadow:none;overflow:hidden
+  }
+  .paper-help{position:static;text-align:right;font-size:10px;margin-bottom:8px}
+  .paper-title{font-size:30px;margin:8px 0 24px}
+  .paper-route{font-size:17px;line-height:1.45;margin-bottom:12px}
+  .paper-meta{
+    flex-direction:column;align-items:flex-start;gap:4px;
+    font-size:13px;line-height:1.45;margin:0 0 24px
+  }
+  .paper-items{font-size:16px;line-height:1.72;letter-spacing:0}
+  .paper-item{display:flex;align-items:flex-start;margin:0 0 14px}
+  .item-mark{
+    flex:0 0 24px;width:24px;height:24px;margin:3px 7px 0 0
+  }
+  .item-mark.checked::after{font-size:25px;left:1px;top:-6px}
+  .sheet-watermark{font-size:27px;letter-spacing:3px}
+
+  /* 验卡机：从桌面表格改成手机卡片式信息 */
+  .validator-stage{padding:0;background:#fff}
+  .validator{width:100%;min-height:0;border:0;box-shadow:none}
+  .val-top{height:auto;min-height:46px;padding:7px 9px}
+  .machine-title{font-size:15px;padding:5px 9px}
+  .val-clock{font-size:10px}
+  .val-control{
+    display:grid!important;grid-template-columns:1fr!important;
+    gap:7px;padding:8px 9px
+  }
+  .big-time{font-size:20px}
+  .ic-unit{justify-content:flex-start}
+  .card-slot{width:48px;height:48px}
+  .val-field{
+    display:grid;grid-template-columns:72px minmax(0,1fr);
+    align-items:center;gap:6px;width:100%;font-size:12px;white-space:normal
+  }
+  .val-field select,.val-field input{
+    width:100%;min-width:0;height:34px;font-size:13px
+  }
+  .val-control>.val-btn{width:100%;height:36px}
+  .validator-stage .validator>div:nth-of-type(3){
+    flex-wrap:wrap!important;padding:7px!important
+  }
+  #insertCardBtn,#removeCardBtn,#submitCmdCheckBtn{
+    flex:1 1 calc(50% - 6px);min-width:120px
+  }
+  #validatorHint{
+    width:100%;margin:2px 0 0!important;line-height:1.4
+  }
+
+  .legend-box{width:100%;flex-wrap:wrap;font-size:10px}
+  .legend-dot{width:15px;height:10px}
+
+  .val-table-wrap{
+    margin:0;border-left:0;border-right:0;min-height:0;
+    padding:6px;background:#eef3f6;overflow:visible
+  }
+  .val-table{display:block;width:100%;font-size:12px}
+  .val-table thead{display:none}
+  .val-table tbody{display:block;width:100%}
+  .val-table tr{
+    display:block;width:100%;margin:7px 0 10px;
+    border:1px solid #9eafb9;border-radius:8px;overflow:hidden;
+    box-shadow:0 2px 5px rgba(0,0,0,.08)
+  }
+  .val-table td{
+    display:grid;grid-template-columns:86px minmax(0,1fr);
+    align-items:start;width:100%;height:auto;min-height:34px;
+    padding:7px 8px;border:0;border-bottom:1px solid rgba(78,101,115,.20);
+    white-space:normal;overflow:visible;text-overflow:clip;line-height:1.45
+  }
+  .val-table td:last-child{border-bottom:0}
+  .val-table td::before{
+    content:attr(data-label);font-weight:700;color:#486372;padding-right:6px
+  }
+  .val-table tr.empty-row{border:0;box-shadow:none}
+  .val-table tr.empty-row td{
+    display:block!important;text-align:center!important;min-height:180px!important;
+    padding:72px 10px!important;background:#f6f8fa!important;color:#70828e!important
+  }
+  .val-table tr.empty-row td::before{display:none}
+
+  .val-footer{
+    min-height:0;flex-direction:column;align-items:stretch;gap:8px;padding:8px 9px
+  }
+  .sys-text{min-width:0;font-size:11px}
+  .val-actions{margin-left:0;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .bottom-btn{min-width:0;padding:8px 4px;font-size:12px}
+
+  .ic-overlay{position:fixed;padding:12px}
+  .error-box{width:100%;max-width:430px;padding:18px 14px}
+  .error-title{font-size:19px}
+  .error-text{font-size:12px}
+
+  .teacher-panel{width:min(92vw,340px)}
+}
+
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">运行揭示出勤核对综合训练系统 <span class="version">V1.3.0</span></div>
+    <div class="top-meta">
+      <div class="meta-pill" id="batchMeta">训练批次：01</div>
+      <div class="meta-pill" id="versionMeta">学生版本：A</div>
+      <div class="meta-pill" id="dirMeta">值乘方向：下行</div>
+      <button class="teacher-btn" id="teacherBtn">教师设置</button>
+    </div>
+  </header>
+
+  <nav class="steps">
+    <button class="step active" data-view="board"><span class="num">1</span>公布揭示</button>
+    <button class="step" data-view="paper"><span class="num">2</span>交付揭示核对</button>
+    <button class="step" data-view="validator"><span class="num">3</span>IC卡验卡</button>
+    <button class="step disabled" data-view="simulator" id="simStep"><span class="num">4</span>模拟机复核</button>
+  </nav>
+
+  <main class="main">
+    <section class="view active" id="view-board">
+      <div class="card-shell">
+        <div class="view-toolbar">
+          <div><div class="view-title">公布揭示监视</div><div class="view-sub">按上、下行分区展示标准公布揭示，作为本批次核对基准。</div></div>
+          <div class="spacer"></div>
+          <button class="btn small" id="toggleAnswerBtn">教师答案标识：关</button>
+          <button class="btn primary small" data-next="paper">进入交付揭示核对</button>
+        </div>
+        <div class="board-wrap">
+          <div class="board-shell">
+            <div class="board">
+              <div class="route-plate" id="boardTitle">甲站 —— 己站</div>
+              <section class="lane"><div class="lane-label">上行</div><div class="board-cards" id="upCards"></div></section>
+              <section class="lane"><div class="lane-label">下行</div><div class="board-cards" id="downCards"></div></section>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-paper">
+      <div class="card-shell">
+        <div class="view-toolbar">
+          <div><div class="view-title">学生端交付揭示</div><div class="view-sub">可圈画、打钩、拖选文字进行黄色重点标记；本题面可能存在错、漏、多项。</div></div>
+          <div class="spacer"></div>
+          <button class="btn small" data-next="board">查看公布揭示</button>
+          <button class="btn primary small" data-next="validator">完成纸面核对，进入验卡</button>
+        </div>
+        <div class="paper-stage">
+          <div class="sheet" id="sheet">
+            <div class="sheet-watermark">教学训练模拟 · 非行车凭证</div>
+            <div class="paper-help">点击序号前空圈：画圈 → 打钩 → 清除；拖选文字可标黄</div>
+            <div class="paper-title">运行揭示</div>
+            <div class="paper-route" id="paperRoute"></div><div id="paperDutyInfo" style="text-align:center;font:13px Microsoft YaHei;color:#6d7b84;margin:-6px 0 14px"></div>
+            <div class="paper-meta"><span id="paperDelivery"></span><span id="paperValid"></span></div>
+            <div class="paper-items" id="paperItems"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-validator">
+      <div class="card-shell">
+        <div class="view-toolbar">
+          <div><div class="view-title">TYK-II 型提示递卡装置 · 教学仿真</div><div class="view-sub">插入IC卡 → 选择车次、值乘区段和交路 → 系统按值乘任务匹配公布揭示、交付揭示及LKJ临时数据 → 持交付揭示核对有用揭示命令号。</div></div>
+          <div class="spacer"></div>
+          <div class="legend-box">
+            <span class="legend-dot" style="background:var(--green)"></span>一致
+            <span class="legend-dot" style="background:var(--red)"></span>IC卡内缺少
+            <span class="legend-dot" style="background:var(--yellow)"></span>IC卡内多出
+          </div>
+        </div>
+        <div class="validator-stage">
+          <div class="validator" style="position:relative">
+            <div class="val-top">
+              <div class="machine-title">TYK-II 型提示递卡装置</div>
+              <div class="val-clock" id="valDate">2026-09-06　10:31:25</div>
+            </div>
+            <div class="val-control">
+              <div class="big-time" id="valClock">10:31</div>
+              <div class="ic-unit">
+                <div class="card-slot"></div>
+                <div class="ic-state" id="icState">IC卡未插入</div>
+              </div>
+              <div class="val-field">车次：<select id="trainSelect"></select></div>
+              <div class="val-field">运行区段：<select id="sectionSelect"></select></div>
+              <div class="val-field">交路：<select id="routeSelect"></select></div>
+              <div class="val-field">机型：<select><option>HXD3D</option></select></div>
+              <div class="val-field">乘务员：<select><option>张三</option></select></div>
+              <button class="val-btn" id="queryBtn" disabled>查询</button>
+            </div>
+            <div style="padding:7px 10px;background:#0874b5;display:flex;gap:8px">
+              <button class="val-btn load" id="insertCardBtn">插入IC卡</button>
+              <button class="val-btn" id="removeCardBtn" disabled>退卡</button>
+              <button class="val-btn" id="submitCmdCheckBtn" disabled>提交命令号核对</button>
+              <span style="color:#fff;font-size:12px;align-self:center;margin-left:auto" id="validatorHint">请先插入IC卡。</span>
+            </div>
+            <div class="val-table-wrap">
+              <table class="val-table">
+                <thead><tr>
+                  <th style="width:42px">序号</th><th style="width:82px">提示编号</th><th style="width:80px">类型</th>
+                  <th style="width:75px">地点</th><th style="width:92px">公里标</th><th>提示内容</th>
+                  <th style="width:145px">有效日期</th><th style="width:120px">起止区间</th><th style="width:78px">核对</th>
+                </tr></thead>
+                <tbody id="validatorRows"><tr><td colspan="9" style="height:310px;text-align:center;color:#7b8c98">等待插卡并查询值乘区段</td></tr></tbody>
+              </table>
+            </div>
+            <div class="val-footer">
+              <div class="sys-text" id="sysText">系统状态：正常<br>操作提示：请插入IC卡并选择值乘区段。</div>
+              <div class="val-actions">
+                <button class="bottom-btn" data-next="paper">上一项</button>
+                <button class="bottom-btn" id="validatorNextBtn" disabled>下一项</button>
+                <button class="bottom-btn" onclick="window.print()">打印</button>
+              </div>
+            </div>
+            <div class="ic-overlay" id="faultOverlay">
+              <div class="error-box">
+                <div class="error-icon">⚠</div>
+                <div class="error-title">验卡设备故障</div>
+                <div class="error-text">
+                  当前验卡设备无法完成LKJ临时数据比对。按训练要求，将IC卡内数据载入模拟运行测试设备，
+                  与调度员共同确认载入数量、命令号与应写卡数量、命令号是否一致，
+                  再持交付揭示与模拟机中的LKJ临时数据核对有用揭示命令号。
+                </div>
+                <button class="btn danger" id="goSimulatorBtn">转入模拟运行测试设备</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-simulator">
+      <div class="card-shell">
+        <div class="view-toolbar">
+          <div><div class="view-title">模拟运行测试设备 · IC卡数据复核</div><div class="view-sub">仅在验卡设备故障训练情形启用。</div></div>
+          <div class="spacer"></div>
+          <button class="btn small" data-next="validator">返回验卡机</button>
+        </div>
+        <div class="sim-stage">
+          <div class="simulator">
+            <div class="sim-top"><div class="sim-title">LKJ 模拟运行测试设备</div><div class="sim-status" id="simTopStatus">IC CARD READY</div></div>
+            <div class="sim-content">
+              <div class="sim-left">
+                <div class="sim-device">
+                  <div>
+                    <div class="sim-card">IC CARD<br><span style="font-size:12px">教学模拟</span></div>
+                    <div style="margin-top:10px;font-size:12px;color:#9cb3c1" id="simLoadText">等待载入IC卡数据</div>
+                  </div>
+                </div>
+                <button class="btn primary" style="width:100%;margin-top:12px" id="loadSimBtn">载入IC卡数据</button>
+                <div class="sim-metrics">
+                  <div class="metric"><div class="v" id="expectedCount">0</div><div class="k">应写卡数量</div></div>
+                  <div class="metric"><div class="v" id="loadedCount">0</div><div class="k">IC卡载入数量</div></div>
+                </div>
+                <div class="confirm-box">
+                  <b>共同确认</b>
+                  <label><input type="checkbox" id="dispatcherConfirm"> 调度员已共同确认载入数量及命令号</label>
+                  <label><input type="checkbox" id="crewConfirm"> 乘务员已持交付揭示核对有用揭示命令号</label>
+                  <button class="btn green" style="width:100%;margin-top:8px" id="finishSimBtn" disabled>完成模拟机复核</button>
+                </div>
+              </div>
+              <div class="sim-right">
+                <table class="sim-table">
+                  <thead><tr><th>序号</th><th>命令号</th><th>应写卡</th><th>IC卡载入</th><th>与交付揭示命令号</th><th>结果</th></tr></thead>
+                  <tbody id="simRows"><tr><td colspan="6" style="text-align:center;height:260px;color:#93a9b7">请先载入IC卡数据</td></tr></tbody>
+                </table>
+                <div class="result-banner" id="simResult">等待复核。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<aside class="teacher-panel" id="teacherPanel">
+  <h3>教师设置</h3>
+  <p>同一“训练批次 + 学生版本 + 值乘任务”会稳定生成同一套数据。验卡机中的车次、区段、交路共同决定本趟应匹配的公布揭示、交付揭示及IC卡数据。</p>
+  <label>训练批次</label>
+  <input id="batchInput" value="01" maxlength="12">
+  <label>学生版本</label>
+  <select id="versionSelect">
+    <option value="A">A｜交付揭示：命令号错误 + 漏项</option>
+    <option value="B">B｜交付揭示：方向错误 + 多项</option>
+    <option value="C">C｜交付揭示：时间错误 + 内容缺失</option>
+    <option value="D">D｜交付揭示完整正确</option>
+  </select>
+  <label>验卡情形</label>
+  <select id="scenarioSelect">
+    <option value="AUTO">随机（按批次稳定生成）</option>
+    <option value="NORMAL">全部绿色：IC卡与应写数据一致</option>
+    <option value="MISSING">红色：IC卡内缺少</option>
+    <option value="EXTRA">黄色：IC卡内多出</option>
+    <option value="FAULT">验卡设备故障 → 模拟机复核</option>
+  </select>
+  <button class="btn primary" id="applyTeacherBtn">应用并重新生成本批次</button>
+  <button class="btn" id="closeTeacherBtn">关闭</button>
+  <div class="rule-note">
+    <b>当前设备变化类规则：</b><br>
+    出站色灯信号机故障：设置绿色许可证相关揭示；<br>
+    进站色灯信号机故障、停车接车：设置引导信号引导接车；<br>
+    进站色灯信号机故障、通过车站：设置特定引导相关揭示。<br><br>
+    本系统为教学训练模拟，非实际行车凭证。
+  </div>
+</aside>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ------------------ 通用批次数据 ------------------ */
+function hash32(str){
+  let h=2166136261>>>0; str=String(str||"01").trim()||"01";
+  for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)}
+  return h>>>0
+}
+function seededRng(seed){
+  let a=seed>>>0;
+  return function(){a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296}
+}
+function shuffle(arr,rnd){arr=[...arr];for(let i=arr.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]]}return arr}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"})[m])}
+function deepClone(x){return JSON.parse(JSON.stringify(x))}
+const START="2021 年 1 月 1 日 0 时 0 分",END="2021 年 12 月 31 日 23 时 59 分",DELIVERY="2021年01月01日00时00分";
+
+const POOL_UP=[
+  {type:"设备变化",place:"丁站",km:"K88+300",body:"通用线丁站上行进站色灯信号机故障，列车在丁站办理通过时按特定引导方式通过车站。"},
+  {type:"临时限速",place:"乙—甲",km:"K18+600",body:"通用线乙站至甲站区间线路施工，自K18+600至K20+200限速45 km/h。"},
+  {type:"换装",place:"丙站",km:"K126+500",body:"通用线丙站上行方向机车信号车载设备软件换装，出勤时核对设备版本标识。"},
+  {type:"设备变化",place:"戊站",km:"K208+100",body:"通用线戊站上行进站色灯信号机故障，列车在戊站办理停车接车时使用引导信号引导接车。"},
+  {type:"施工",place:"丁—丙",km:"K156+700",body:"通用线丁站至丙站区间自动闭塞设备施工，按施工期间规定的行车组织方式运行。"},
+  {type:"临时限速",place:"乙站",km:"K45+200",body:"通用线乙站上行方向2号道岔至站界施工，列车通过施工地段限速30 km/h。"}
+];
+const POOL_DOWN=[
+  {type:"临时限速",place:"乙—丙",km:"K26+100",body:"通用线乙站至丙站区间线路施工，自K26+100至K31+500限速60 km/h。"},
+  {type:"换装",place:"丁站",km:"K162+400",body:"通用线丁站下行方向LKJ基础数据版本换装，出勤时核对数据版本、线路方向及交路范围。"},
+  {type:"设备变化",place:"丙站",km:"K112+800",body:"通用线丙站站内轨道电路设备检修，列车通过相关区段时按现场设备状态及调度命令执行。"},
+  {type:"设备变化",place:"丁站",km:"K168+600",body:"通用线丁站下行出站色灯信号机故障，丁站下行方向发车时凭绿色许可证发车。"},
+  {type:"临时限速",place:"戊—己",km:"K242+300",body:"通用线戊站至己站区间受恶劣天气影响，自K242+300至K245+800限速45 km/h。"},
+  {type:"换装",place:"乙站",km:"K52+700",body:"通用线乙站下行方向列车运行监控装置相关数据文件换装，换装完成后核对版本标识。"}
+];
+
+function makeStandard(code){
+  code=(String(code||"01").trim()||"01").toUpperCase();
+  if(code==="1")code="01";
+  if(code==="01"){
+    return {
+      code:"01",boardTitle:"甲站 —— 己站",
+      up:[
+        {cmd:"21011",dir:"上行",...POOL_UP[0]},{cmd:"21012",dir:"上行",...POOL_UP[1]},
+        {cmd:"21013",dir:"上行",...POOL_UP[2]},{cmd:"21014",dir:"上行",...POOL_UP[4]}
+      ],
+      down:[
+        {cmd:"21171",dir:"下行",type:"设备变化",place:"丙站",km:"K108+200",body:"通用线丙站下行出站色灯信号机故障，丙站下行方向发车时凭绿色许可证发车。"},
+        {cmd:"21172",dir:"下行",type:"设备变化",place:"戊站",km:"K218+500",body:"通用线戊站下行进站色灯信号机故障，列车在戊站办理停车接车时使用引导信号引导接车。"},
+        {cmd:"21173",dir:"下行",...POOL_DOWN[0]},
+        {cmd:"21174",dir:"下行",...POOL_DOWN[1]}
+      ]
+    }
+  }
+  const seed=hash32("TRAIN:"+code),rnd=seededRng(seed),base=21000+(seed%700);
+  const up=shuffle(POOL_UP,rnd).slice(0,4).map((x,i)=>({cmd:String(base+i),dir:"上行",...x}));
+  const down=shuffle(POOL_DOWN,rnd).slice(0,4).map((x,i)=>({cmd:String(base+10+i),dir:"下行",...x}));
+  return {code,boardTitle:"甲站 —— 己站",up,down}
+}
+function completeItem(x){return{...x,start:START,end:END,delivery:DELIVERY}}
+
+/*
+  同一块公布揭示监视上保留上下行全部标准揭示。
+  “值乘任务”由 车次 + 值乘区段 + 交路 三项共同确定；
+  交付揭示和IC卡应写数据只取该值乘任务需要的公布揭示。
+*/
+const DUTY_DEFS=[
+  {id:"D1",train:"K1572",dir:"下行",section:"甲站至己站 下行",route:"甲站—己站",indexes:[0,1,2,3]},
+  {id:"D2",train:"K1572",dir:"下行",section:"乙站至己站 下行",route:"乙站—己站",indexes:[1,2,3]},
+  {id:"D3",train:"K1574",dir:"下行",section:"甲站至戊站 下行",route:"甲站—戊站",indexes:[0,1,2]},
+  {id:"D4",train:"K9082",dir:"下行",section:"乙站至戊站 下行",route:"乙站—戊站",indexes:[1,2]},
+  {id:"U1",train:"K1581",dir:"上行",section:"己站至甲站 上行",route:"己站—甲站",indexes:[0,1,2,3]},
+  {id:"U2",train:"K1581",dir:"上行",section:"戊站至甲站 上行",route:"戊站—甲站",indexes:[0,1,2]},
+  {id:"U3",train:"K1583",dir:"上行",section:"己站至乙站 上行",route:"己站—乙站",indexes:[0,2,3]},
+  {id:"U4",train:"K9081",dir:"上行",section:"戊站至乙站 上行",route:"戊站—乙站",indexes:[0,2]}
+];
+function makeDuties(std){
+  return DUTY_DEFS.map(d=>{
+    const source=d.dir==="上行"?std.up:std.down;
+    return {...d,items:d.indexes.map(i=>source[i]).filter(Boolean)}
+  })
+}
+function getDutyById(id){return state.duties.find(d=>d.id===id)||state.duties[0]}
+function dutyRouteText(d){return d.section.replace(" ","　")}
+function makeStudentPacket(std,duty,version){
+  const v=(version||"A").toUpperCase();
+  let items=duty.items.map(x=>({...completeItem(x),target:true}));
+  const rnd=seededRng(hash32("STUDENT:"+std.code+":"+duty.id+":"+v));
+  const pickIdx=()=>Math.floor(rnd()*items.length);
+  const sameDirPool=(duty.dir==="上行"?std.up:std.down).filter(x=>!duty.items.some(t=>t.cmd===x.cmd));
+  const oppPool=duty.dir==="上行"?std.down:std.up;
+  if(v==="A"){
+    if(items.length){let i=pickIdx();items[i].cmd=String(Number(items[i].cmd)+7);items[i]._error="命令号不一致"}
+    if(items.length>2)items.splice(pickIdx(),1);
+  }else if(v==="B"){
+    if(items.length){let i=pickIdx(),from=duty.dir,to=from==="上行"?"下行":"上行";items[i].body=items[i].body.includes(from)?items[i].body.replaceAll(from,to):items[i].body+"（方向信息异常）";items[i]._error="方向或内容不一致"}
+    const extraPool=sameDirPool.length?sameDirPool:oppPool;
+    if(extraPool.length)items.push({...completeItem(extraPool[Math.floor(rnd()*extraPool.length)]),target:false,_error:"非本趟值乘任务的多余揭示"});
+  }else if(v==="C"){
+    if(items.length){let i=pickIdx();items[i].end="2021 年 12 月 31 日 22 时 59 分";items[i]._error="有效时间不一致"}
+    if(items.length>1){let j=pickIdx();let b=items[j].body,p=b.indexOf("，");items[j].body=p>8?b.slice(0,p)+"。":b.slice(0,Math.floor(b.length*.58));items[j]._error="内容缺失"}
+  }
+  return {
+    route:dutyRouteText(duty),delivery:"交付日期：2021 年 1 月 1 日 0：00",
+    valid:"有效时间至 2021 年 12 月 31 日 23：59 分",items,
+    batch:std.code,version:v,activeDir:duty.dir,dutyId:duty.id,train:duty.train,section:duty.section,routeName:duty.route
+  }
+}
+function scenarioFor(code,version,dutyId,override){
+  if(override && override!=="AUTO")return override;
+  const rnd=seededRng(hash32("CARD-SCENARIO:"+code+":"+version+":"+dutyId));
+  const r=rnd();
+  if(r<.28)return"NORMAL";
+  if(r<.52)return"MISSING";
+  if(r<.76)return"EXTRA";
+  return"FAULT"
+}
+function makeCardData(std,duty,scenario){
+  const expected=duty.items.map(completeItem);
+  const sameDirPool=(duty.dir==="上行"?std.up:std.down).filter(x=>!duty.items.some(t=>t.cmd===x.cmd));
+  const oppPool=duty.dir==="上行"?std.down:std.up;
+  const rnd=seededRng(hash32("CARD-DATA:"+std.code+":"+duty.id+":"+scenario));
+  let underlying=scenario==="FAULT"?(rnd()<.45?"NORMAL":rnd()<.72?"MISSING":"EXTRA"):scenario;
+  let actual=expected.map(deepClone);
+  if(underlying==="MISSING" && actual.length){actual.splice(Math.floor(rnd()*actual.length),1)}
+  if(underlying==="EXTRA"){
+    const extraPool=sameDirPool.length?sameDirPool:oppPool;
+    if(extraPool.length){
+      const ex=completeItem(deepClone(extraPool[Math.floor(rnd()*extraPool.length)]));
+      ex.extra=true;actual.push(ex)
+    }
+  }
+  return{expected,actual,scenario,underlying,dutyId:duty.id}
+}
+function unionComparison(card){
+  const exp=new Map(card.expected.map(x=>[x.cmd,x])),act=new Map(card.actual.map(x=>[x.cmd,x]));
+  const cmds=[...new Set([...exp.keys(),...act.keys()])];
+  return cmds.map(cmd=>{
+    const e=exp.get(cmd),a=act.get(cmd);
+    return {cmd,item:e||a,status:e&&a?"green":e&&!a?"red":"yellow",expected:!!e,loaded:!!a}
+  })
+}
+
+/* ------------------ 全局状态 ------------------ */
+let state={
+  code:"01",version:"A",scenarioOverride:"AUTO",std:null,duties:[],dutyId:null,duty:null,
+  packet:null,card:null,answer:false,icInserted:false,queried:false,simLoaded:false
+};
+function defaultDutyId(duties,code){
+  const rnd=seededRng(hash32("DEFAULT-DUTY:"+code));
+  const preferred=rnd()<.55?"D1":"U1";
+  return duties.some(d=>d.id===preferred)?preferred:duties[0].id
+}
+function buildDutyArtifacts(resetCard=true){
+  state.duty=getDutyById(state.dutyId);
+  state.packet=makeStudentPacket(state.std,state.duty,state.version);
+  const sc=scenarioFor(state.std.code,state.version,state.duty.id,state.scenarioOverride);
+  state.card=makeCardData(state.std,state.duty,sc);
+  if(resetCard){state.icInserted=false;state.queried=false;state.simLoaded=false}
+  document.getElementById("dirMeta").textContent=`值乘任务：${state.duty.train} / ${state.duty.section}`;
+}
+function rebuild(){
+  state.std=makeStandard(state.code);
+  state.duties=makeDuties(state.std);
+  if(!state.dutyId || !state.duties.some(d=>d.id===state.dutyId))state.dutyId=defaultDutyId(state.duties,state.std.code);
+  buildDutyArtifacts(true);
+  document.getElementById("batchMeta").textContent="训练批次："+state.std.code;
+  document.getElementById("versionMeta").textContent="学生版本："+state.version;
+  renderBoard();renderPaper();resetValidator();resetSimulator();renderDutySelectors();
+  document.getElementById("simStep").classList.toggle("disabled",state.card.scenario!=="FAULT");
+  showView("board");
+}
+function activateDuty(dutyId,fromValidator=false){
+  if(!state.duties.some(d=>d.id===dutyId))return false;
+  const changed=state.dutyId!==dutyId;
+  state.dutyId=dutyId;
+  buildDutyArtifacts(true);
+  renderBoard();renderPaper();resetSimulator();
+  document.getElementById("simStep").classList.toggle("disabled",state.card.scenario!=="FAULT");
+  if(changed && fromValidator)toast("值乘任务已切换：公布揭示目标、交付揭示和IC卡数据已同步");
+  return true
+}
+function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove("show"),1800)}
+
+/* ------------------ 导航 ------------------ */
+function showView(name){
+  if(name==="simulator" && state.card.scenario!=="FAULT"){toast("当前批次未触发验卡设备故障，无需进入模拟机复核。");return}
+  document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id==="view-"+name));
+  document.querySelectorAll(".step").forEach(s=>s.classList.toggle("active",s.dataset.view===name));
+  window.scrollTo({top:0,behavior:"smooth"})
+}
+document.querySelectorAll("[data-next]").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.next)));
+document.querySelectorAll(".step").forEach(s=>s.addEventListener("click",()=>{if(!s.classList.contains("disabled"))showView(s.dataset.view)}));
+
+/* ------------------ 公布揭示 ------------------ */
+function noticeHtml(item,index,target){
+  return `<article class="notice ${state.answer&&target?"teacher-target":""}">
+    <span class="magnet"></span>
+    <div class="notice-head">[${esc(item.cmd)}]-[第${index+1}条]</div>
+    <div class="notice-grid">
+      <div class="ncell nlabel">命令号</div><div class="ncell"><b>${esc(item.cmd)}</b></div>
+      <div class="ncell nlabel">起止日期</div><div class="ncell">${esc(START)} 至 ${esc(END)}</div>
+      <div class="ncell nlabel">出示日期</div><div class="ncell nspan3">${esc(DELIVERY)}</div>
+      <div class="ncell nlabel">摘录日期</div><div class="ncell nspan3"></div>
+      <div class="ncell nlabel ncontent-label">内容</div><div class="ncell ncontent">${esc(item.body)}</div>
+    </div>
+    <div class="sign-row"><div>抄录人：</div><div><span class="stamp">调度员<br>张三</span></div><div>复核人：</div><div><span class="stamp">调度员<br>李四</span></div><div>撤除人：</div><div></div></div>
+  </article>`
+}
+function renderBoard(){
+  document.getElementById("boardTitle").textContent=state.std.boardTitle;
+  const targetCmds=new Set((state.duty?.items||[]).map(x=>x.cmd));
+  document.getElementById("upCards").innerHTML=state.std.up.map((x,i)=>noticeHtml(x,i,targetCmds.has(x.cmd))).join("");
+  document.getElementById("downCards").innerHTML=state.std.down.map((x,i)=>noticeHtml(x,i,targetCmds.has(x.cmd))).join("")
+}
+document.getElementById("toggleAnswerBtn").addEventListener("click",()=>{
+  state.answer=!state.answer;
+  document.getElementById("toggleAnswerBtn").textContent="教师答案标识："+(state.answer?"开":"关");
+  renderBoard()
+});
+
+/* ------------------ 学生揭示 ------------------ */
+function renderPaper(){
+  document.getElementById("paperRoute").textContent=state.packet.route;
+  document.getElementById("paperDutyInfo").textContent=`车次：${state.packet.train}　值乘区段：${state.packet.section}　交路：${state.packet.routeName}`;
+  document.getElementById("paperDelivery").textContent=state.packet.delivery;
+  document.getElementById("paperValid").textContent=state.packet.valid;
+  document.getElementById("paperItems").innerHTML=state.packet.items.map((it,i)=>`
+    <p class="paper-item">
+      <span class="item-mark" data-state="0"></span><span>${i+1}、△调度命令号 ${esc(it.cmd)} 号：${esc(it.start)}至${esc(it.end)}，${esc(it.body)}</span>
+    </p>`).join("");
+  document.querySelectorAll(".item-mark").forEach(m=>m.addEventListener("click",()=>{
+    let s=(Number(m.dataset.state||0)+1)%3;m.dataset.state=s;m.classList.toggle("circled",s>=1);m.classList.toggle("checked",s===2)
+  }))
+}
+document.getElementById("sheet").addEventListener("mouseup",()=>{
+  setTimeout(()=>{
+    const sel=window.getSelection();if(!sel||sel.rangeCount===0||sel.isCollapsed)return;
+    const range=sel.getRangeAt(0),root=document.getElementById("sheet");
+    if(!root.contains(range.commonAncestorContainer)){sel.removeAllRanges();return}
+    try{const mark=document.createElement("mark");mark.className="student-highlight";mark.appendChild(range.extractContents());range.insertNode(mark);sel.removeAllRanges()}catch(e){sel.removeAllRanges()}
+  },0)
+});
+
+/* ------------------ 验卡机 ------------------ */
+function renderDutySelectors(){
+  const trainSel=document.getElementById("trainSelect");
+  const sectionSel=document.getElementById("sectionSelect");
+  const routeSel=document.getElementById("routeSelect");
+  const trains=[...new Set(state.duties.map(d=>d.train))];
+  trainSel.innerHTML=trains.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("");
+  trainSel.value=state.duty.train;
+  refreshSectionsForTrain(false);
+  sectionSel.value=state.duty.section;
+  refreshRoutesForSelection(false);
+  routeSel.value=state.duty.route;
+}
+function refreshSectionsForTrain(preserve=true){
+  const train=document.getElementById("trainSelect").value;
+  const sectionSel=document.getElementById("sectionSelect");
+  const current=preserve?sectionSel.value:"";
+  const sections=[...new Set(state.duties.filter(d=>d.train===train).map(d=>d.section))];
+  sectionSel.innerHTML=sections.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("");
+  if(current && sections.includes(current))sectionSel.value=current;
+  refreshRoutesForSelection(preserve);
+}
+function refreshRoutesForSelection(preserve=true){
+  const train=document.getElementById("trainSelect").value;
+  const section=document.getElementById("sectionSelect").value;
+  const routeSel=document.getElementById("routeSelect");
+  const current=preserve?routeSel.value:"";
+  const routes=[...new Set(state.duties.filter(d=>d.train===train&&d.section===section).map(d=>d.route))];
+  routeSel.innerHTML=routes.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("");
+  if(current && routes.includes(current))routeSel.value=current;
+}
+function selectedDuty(){
+  const train=document.getElementById("trainSelect").value;
+  const section=document.getElementById("sectionSelect").value;
+  const route=document.getElementById("routeSelect").value;
+  return state.duties.find(d=>d.train===train&&d.section===section&&d.route===route)||null
+}
+document.getElementById("trainSelect").addEventListener("change",()=>{refreshSectionsForTrain(false);document.getElementById("validatorHint").textContent="车次已改变，请核对值乘区段与交路后查询。"});
+document.getElementById("sectionSelect").addEventListener("change",()=>{refreshRoutesForSelection(false);document.getElementById("validatorHint").textContent="值乘区段已改变，请核对交路后查询。"});
+document.getElementById("routeSelect").addEventListener("change",()=>{document.getElementById("validatorHint").textContent="交路已改变，点击查询后将按该值乘任务匹配揭示。"});
+function resetValidator(){
+  document.getElementById("icState").textContent="IC卡未插入";
+  document.getElementById("insertCardBtn").disabled=false;document.getElementById("removeCardBtn").disabled=true;document.getElementById("queryBtn").disabled=true;
+  document.getElementById("submitCmdCheckBtn").disabled=true;document.getElementById("validatorNextBtn").disabled=true;
+  document.getElementById("validatorRows").innerHTML='<tr class="empty-row"><td colspan="9">等待插卡并选择车次、值乘区段和交路</td></tr>';
+  document.getElementById("sysText").innerHTML="系统状态：正常<br>操作提示：请插入IC卡并选择车次、值乘区段和交路。";
+  document.getElementById("validatorHint").textContent="请先插入IC卡。";
+  document.getElementById("faultOverlay").classList.remove("show")
+}
+document.getElementById("insertCardBtn").addEventListener("click",()=>{
+  state.icInserted=true;document.getElementById("icState").textContent="IC卡已插入";
+  document.getElementById("insertCardBtn").disabled=true;document.getElementById("removeCardBtn").disabled=false;document.getElementById("queryBtn").disabled=false;
+  document.getElementById("sysText").innerHTML="系统状态：IC卡读取就绪<br>操作提示：请选择车次、值乘区段和交路后点击“查询”。";
+  document.getElementById("validatorHint").textContent="IC卡已插入，请确认车次、值乘区段和交路。";toast("IC卡插入成功")
+});
+document.getElementById("removeCardBtn").addEventListener("click",()=>{
+  state.icInserted=false;state.queried=false;resetValidator();toast("IC卡已退出")
+});
+document.getElementById("queryBtn").addEventListener("click",()=>{
+  const duty=selectedDuty();
+  if(!duty){
+    document.getElementById("validatorHint").textContent="当前车次、值乘区段与交路组合没有匹配的值乘任务。";
+    toast("当前选择组合无匹配值乘任务");return
+  }
+  // 查询时以验卡机选择为准，同步切换整套训练任务
+  if(duty.id!==state.dutyId){
+    activateDuty(duty.id,true);
+    renderDutySelectors();
+    // activateDuty 会重置卡状态；当前实体IC卡仍视为已插入
+    state.icInserted=true;
+    document.getElementById("icState").textContent="IC卡已插入";
+    document.getElementById("insertCardBtn").disabled=true;
+    document.getElementById("removeCardBtn").disabled=false;
+    document.getElementById("queryBtn").disabled=false;
+  }
+  state.queried=true;
+  if(state.card.scenario==="FAULT"){
+    document.getElementById("sysText").innerHTML=`系统状态：验卡设备故障<br>当前值乘任务：${esc(state.duty.train)} / ${esc(state.duty.section)} / ${esc(state.duty.route)}<br>操作提示：按规定转入模拟运行测试设备进行IC卡数据复核。`;
+    document.getElementById("faultOverlay").classList.add("show");
+    document.getElementById("simStep").classList.remove("disabled");
+    return
+  }
+  renderValidatorRows();
+  document.getElementById("submitCmdCheckBtn").disabled=false;
+  document.getElementById("validatorNextBtn").disabled=false;
+  const info=state.card.scenario==="NORMAL"?"全部绿色：IC卡临时数据与应写数据一致。":state.card.scenario==="MISSING"?"发现红色项目：IC卡内存在缺少。":"发现黄色项目：IC卡内存在多出。";
+  document.getElementById("sysText").innerHTML=`系统状态：验卡完成<br>值乘任务：${esc(state.duty.train)} / ${esc(state.duty.section)} / ${esc(state.duty.route)}<br>比对结果：${info}`;
+  document.getElementById("validatorHint").textContent="当前显示内容已按车次、值乘区段和交路从公布揭示中匹配。请持交付揭示核对有用揭示命令号。"
+});
+function rowMeta(item){
+  return {type:item.type||"其他",place:item.place||"—",km:item.km||"—",period:"2021-01-01~2021-12-31",route:state.duty?.route||"—"}
+}
+function renderValidatorRows(){
+  const cmp=unionComparison(state.card);
+  document.getElementById("validatorRows").innerHTML=cmp.map((r,i)=>{
+    const m=rowMeta(r.item);
+    const st=r.status==="green"?"一致":r.status==="red"?"缺少":"多出";
+    return `<tr class="status-${r.status}">
+      <td data-label="序号">${i+1}</td>
+      <td data-label="提示编号">${esc(r.cmd)}</td>
+      <td data-label="类型">${esc(m.type)}</td>
+      <td data-label="地点">${esc(m.place)}</td>
+      <td data-label="公里标">${esc(m.km)}</td>
+      <td data-label="提示内容" title="${esc(r.item.body)}">${esc(r.item.body)}</td>
+      <td data-label="有效日期">${m.period}</td>
+      <td data-label="值乘交路">${esc(m.route)}</td>
+      <td data-label="核对"><label><input type="checkbox" class="cmd-check" data-cmd="${esc(r.cmd)}"> ${st}</label></td>
+    </tr>`
+  }).join("")
+}
+document.getElementById("submitCmdCheckBtn").addEventListener("click",()=>{
+  const checked=[...document.querySelectorAll(".cmd-check:checked")].map(x=>x.dataset.cmd);
+  if(!checked.length){toast("请先勾选你已经持交付揭示核对过的命令号");return}
+  const paperCmds=new Set(state.packet.items.map(x=>x.cmd));
+  const match=checked.filter(c=>paperCmds.has(c)),miss=checked.filter(c=>!paperCmds.has(c));
+  document.getElementById("validatorHint").textContent=`已核对 ${checked.length} 条：与交付揭示命令号一致 ${match.length} 条，不一致 ${miss.length} 条。`;
+  toast("命令号核对结果已生成")
+});
+document.getElementById("validatorNextBtn").addEventListener("click",()=>toast("本批次验卡流程已完成，可返回纸面或公布揭示继续复核。"));
+document.getElementById("goSimulatorBtn").addEventListener("click",()=>{document.getElementById("faultOverlay").classList.remove("show");showView("simulator")});
+
+/* ------------------ 模拟机 ------------------ */
+function resetSimulator(){
+  document.getElementById("expectedCount").textContent="0";document.getElementById("loadedCount").textContent="0";
+  document.getElementById("simLoadText").textContent="等待载入IC卡数据";
+  document.getElementById("simRows").innerHTML='<tr><td colspan="6" style="text-align:center;height:260px;color:#93a9b7">请先载入IC卡数据</td></tr>';
+  document.getElementById("simResult").className="result-banner";document.getElementById("simResult").textContent="等待复核。";
+  document.getElementById("dispatcherConfirm").checked=false;document.getElementById("crewConfirm").checked=false;document.getElementById("finishSimBtn").disabled=true
+}
+function renderSimRows(){
+  const paperCmds=new Set(state.packet.items.map(x=>x.cmd));
+  const cmp=unionComparison(state.card);
+  document.getElementById("simRows").innerHTML=cmp.map((r,i)=>{
+    const paper=paperCmds.has(r.cmd)?"一致":"未找到";
+    const cls=r.status==="green"?"ok":r.status==="red"?"bad":"extra";
+    const result=r.status==="green"?"一致":r.status==="red"?"IC卡缺少":"IC卡多出";
+    return `<tr class="${cls}"><td>${i+1}</td><td>${esc(r.cmd)}</td><td>${r.expected?"有":"无"}</td><td>${r.loaded?"有":"无"}</td><td>${paper}</td><td>${result}</td></tr>`
+  }).join("")
+}
+document.getElementById("loadSimBtn").addEventListener("click",()=>{
+  state.simLoaded=true;document.getElementById("expectedCount").textContent=state.card.expected.length;document.getElementById("loadedCount").textContent=state.card.actual.length;
+  document.getElementById("simLoadText").textContent="IC卡数据载入完成";renderSimRows();
+  const same=state.card.expected.length===state.card.actual.length && unionComparison(state.card).every(x=>x.status==="green");
+  const res=document.getElementById("simResult");res.className="result-banner "+(same?"ok":"bad");
+  res.textContent=same?"载入数量及命令号与应写卡数据一致。请与调度员共同确认，并持交付揭示核对有用揭示命令号。":"载入数量或命令号与应写卡数据不一致。请与调度员共同确认差异，并持交付揭示进一步核对。";
+  updateFinishState();toast("IC卡数据已载入模拟运行测试设备")
+});
+function updateFinishState(){
+  document.getElementById("finishSimBtn").disabled=!(state.simLoaded&&document.getElementById("dispatcherConfirm").checked&&document.getElementById("crewConfirm").checked)
+}
+document.getElementById("dispatcherConfirm").addEventListener("change",updateFinishState);
+document.getElementById("crewConfirm").addEventListener("change",updateFinishState);
+document.getElementById("finishSimBtn").addEventListener("click",()=>{
+  document.getElementById("simTopStatus").textContent="REVIEW COMPLETE";
+  toast("模拟机复核流程完成")
+});
+
+/* ------------------ 教师设置 ------------------ */
+document.getElementById("teacherBtn").addEventListener("click",()=>document.getElementById("teacherPanel").classList.add("open"));
+document.getElementById("closeTeacherBtn").addEventListener("click",()=>document.getElementById("teacherPanel").classList.remove("open"));
+document.getElementById("applyTeacherBtn").addEventListener("click",()=>{
+  state.code=(document.getElementById("batchInput").value.trim()||"01").toUpperCase();
+  state.version=document.getElementById("versionSelect").value;
+  state.scenarioOverride=document.getElementById("scenarioSelect").value;
+  document.getElementById("teacherPanel").classList.remove("open");rebuild();toast("训练批次已重新生成")
+});
+
+/* ------------------ 时钟 ------------------ */
+function updateClock(){
+  const d=new Date(),pad=n=>String(n).padStart(2,"0");
+  document.getElementById("valClock").textContent=pad(d.getHours())+":"+pad(d.getMinutes());
+  document.getElementById("valDate").textContent=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}　${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+setInterval(updateClock,1000);updateClock();rebuild();
+</script>
+</body>
+</html>
