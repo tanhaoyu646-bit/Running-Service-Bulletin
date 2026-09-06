@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>运行揭示公布监视布告栏（批次联动教学版）</title>
+<style>
+  :root{
+    --frame:#5e6667;
+    --glass:#d7dfd9;
+    --glass2:#cbd5cf;
+    --paper:#fff;
+    --grid:#aeb6b8;
+    --blue:#2d7fb2;
+    --red:#b52e2e;
+    --green:#2d8b59;
+    --ink:#2a2a2a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif;background:#b7bdb9;color:var(--ink)}
+  body{overflow:auto}
+
+  .scene{
+    min-height:100vh;
+    padding:12px;
+    background:
+      radial-gradient(circle at 70% 8%,rgba(255,255,255,.34),transparent 20%),
+      linear-gradient(180deg,#aeb5b0 0,#c7ccc8 28%,#a9b0ac 100%);
+  }
+
+  .board-shell{
+    position:relative;
+    width:calc(100vw - 24px);
+    min-width:1180px;
+    margin:0 auto;
+    border:15px solid var(--frame);
+    border-top-color:#707878;
+    border-bottom-color:#4f5657;
+    border-radius:4px;
+    box-shadow:0 18px 46px rgba(0,0,0,.26), inset 0 0 0 2px rgba(255,255,255,.2);
+    background:#cbd5cf;
+  }
+  .board{
+    position:relative;
+    padding:62px 42px 48px 126px;
+    min-height:860px;
+    overflow:hidden;
+    background:
+      linear-gradient(112deg,transparent 0 16%,rgba(255,255,255,.18) 16.5% 17.2%,transparent 17.8% 47%,rgba(255,255,255,.12) 48% 49.2%,transparent 50%),
+      linear-gradient(180deg,rgba(255,255,255,.34),rgba(255,255,255,.04)),
+      repeating-linear-gradient(0deg,rgba(51,76,63,.025) 0 1px,transparent 1px 4px),
+      linear-gradient(90deg,var(--glass),var(--glass2));
+  }
+  .board::after{
+    content:"";
+    position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(circle at 7% 8%,rgba(255,255,255,.30),transparent 11%),
+      linear-gradient(100deg,transparent 0 75%,rgba(255,255,255,.18) 77%,transparent 80%);
+    mix-blend-mode:screen;
+  }
+
+  .route-plate{
+    position:absolute;
+    z-index:5;
+    top:16px;left:50%;transform:translateX(-50%);
+    min-width:390px;
+    padding:11px 40px 12px;
+    text-align:center;
+    font-family:"SimSun","Songti SC",serif;
+    font-size:32px;
+    letter-spacing:4px;
+    color:#5f3d27;
+    background:linear-gradient(#e9ad87,#dc8d67);
+    border:4px solid rgba(244,237,216,.8);
+    box-shadow:0 2px 8px rgba(0,0,0,.22);
+  }
+
+  .watermark{
+    position:absolute;z-index:1;inset:0;
+    display:flex;align-items:center;justify-content:center;
+    pointer-events:none;user-select:none;
+    transform:rotate(-19deg);
+    font:700 64px/1 "Microsoft YaHei",sans-serif;
+    letter-spacing:12px;
+    color:rgba(100,0,0,.035);
+  }
+  .sim-badge{
+    position:absolute;z-index:7;right:16px;top:11px;
+    color:rgba(60,60,60,.62);font-size:12px;letter-spacing:1px;
+  }
+
+  .lane{
+    position:relative;z-index:3;
+    min-height:335px;
+    padding:26px 12px 28px;
+  }
+  .lane + .lane{border-top:2px solid rgba(93,111,102,.46)}
+  .lane-label{
+    position:absolute;
+    left:-96px;top:50%;
+    transform:translateY(-50%);
+    writing-mode:vertical-rl;
+    text-orientation:upright;
+    padding:13px 9px 14px;
+    min-height:122px;
+    display:flex;align-items:center;justify-content:center;
+    background:#b42125;color:#fff;
+    font-weight:700;font-size:32px;letter-spacing:9px;
+    border:2px solid rgba(255,255,255,.45);
+    box-shadow:0 4px 10px rgba(0,0,0,.25);
+  }
+
+  .cards{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    align-items:start;
+    gap:28px 22px;
+  }
+  .notice{
+    position:relative;
+    background:var(--paper);
+    border:1px solid #92999b;
+    box-shadow:0 3px 8px rgba(0,0,0,.20);
+    min-height:258px;
+    font-family:"SimSun","Songti SC","STSong",serif;
+    cursor:pointer;
+    transition:transform .12s ease,box-shadow .12s ease;
+  }
+  .notice:hover{transform:translateY(-2px);box-shadow:0 7px 16px rgba(0,0,0,.24)}
+  .notice.teacher-target{outline:4px solid rgba(255,193,7,.9);outline-offset:3px}
+  .notice::before{
+    content:"";
+    position:absolute;left:0;right:0;top:0;height:9px;background:#2d7fb2;
+  }
+
+  .magnet{
+    position:absolute;z-index:8;
+    width:26px;height:26px;border-radius:50%;
+    top:-15px;left:46%;
+    box-shadow:inset -4px -5px 7px rgba(0,0,0,.25),0 4px 8px rgba(0,0,0,.23);
+    background:#b54242;
+  }
+  .magnet.blue{background:#3377a6}
+  .magnet.small{width:22px;height:22px;top:-13px;left:55%}
+
+  .notice-head{
+    margin-top:9px;
+    text-align:center;
+    font-weight:700;
+    font-size:18px;
+    padding:8px 4px 5px;
+    border-bottom:1px solid var(--grid);
+  }
+  .notice-grid{
+    display:grid;
+    grid-template-columns:54px 66px 72px 1fr;
+    font-size:12px;
+    line-height:1.42;
+  }
+  .cell{
+    min-height:34px;padding:7px 6px;
+    border-right:1px solid var(--grid);
+    border-bottom:1px solid var(--grid);
+    overflow:hidden;
+  }
+  .cell:nth-child(4n){border-right:0}
+  .label{display:flex;align-items:center;justify-content:center;color:#4c4c4c}
+  .strong{font-weight:700}
+  .span3{grid-column:span 3;border-right:0}
+  .content-label{min-height:112px}
+  .content-cell{
+    grid-column:span 3;border-right:0;
+    min-height:112px;
+    font-size:12px;
+    line-height:1.56;
+    padding:8px 7px;
+  }
+  .sign-row{
+    display:grid;grid-template-columns:52px 1fr 52px 1fr 52px 1fr;
+    font-size:11px;
+  }
+  .sign-row > div{min-height:34px;padding:5px;border-right:1px solid var(--grid);display:flex;align-items:center;justify-content:center}
+  .sign-row > div:last-child{border-right:0}
+  .stamp{
+    display:inline-flex;align-items:center;justify-content:center;
+    min-width:50px;height:28px;padding:0 4px;
+    border:2px solid #d83a3a;color:#c52828;
+    font-family:"KaiTi","STKaiti",serif;font-weight:700;
+    transform:rotate(-2deg);
+  }
+  .red{color:#d23c3c;font-weight:700}
+  .green{color:#369965;font-weight:700}
+  .hint{color:#767676}
+
+  /* 放大查看 */
+  .modal{
+    position:fixed;z-index:50;inset:0;
+    display:none;align-items:center;justify-content:center;
+    background:rgba(0,0,0,.62);padding:32px;
+  }
+  .modal.open{display:flex}
+  .modal-card{
+    width:min(930px,92vw);max-height:90vh;overflow:auto;
+    background:#fff;border:8px solid #f0f0ed;box-shadow:0 20px 60px rgba(0,0,0,.45);
+  }
+  .modal-toolbar{
+    display:flex;justify-content:space-between;align-items:center;
+    background:#2d7fb2;color:#fff;padding:10px 14px;
+    font-family:"Microsoft YaHei",sans-serif;font-size:14px;
+  }
+  .modal-toolbar button{border:0;background:#fff;color:#333;border-radius:6px;padding:6px 10px;cursor:pointer}
+  .big-notice{
+    font-family:"SimSun","Songti SC","STSong",serif;
+    color:#222;background:white;
+  }
+  .big-notice .notice-head{font-size:26px;padding:18px 8px 10px}
+  .big-notice .notice-grid{grid-template-columns:92px 128px 130px 1fr;font-size:17px}
+  .big-notice .cell{min-height:54px;padding:12px 10px}
+  .big-notice .content-label{min-height:240px}
+  .big-notice .content-cell{min-height:240px;font-size:18px;line-height:1.8;padding:20px 16px}
+  .big-notice .sign-row{grid-template-columns:90px 1fr 90px 1fr 90px 1fr;font-size:15px}
+  .big-notice .sign-row > div{min-height:55px}
+  .big-notice .stamp{min-width:70px;height:34px;font-size:17px}
+
+  /* 教师控制抽屉 */
+  .drawer{
+    position:fixed;z-index:60;left:0;top:0;width:290px;height:100vh;
+    transform:translateX(-100%);transition:transform .22s ease;
+    background:rgba(247,248,247,.98);border-right:1px solid #c7c7c7;
+    box-shadow:5px 0 18px rgba(0,0,0,.18);
+    padding:24px 20px;overflow:auto;
+  }
+  .drawer.open{transform:translateX(0)}
+  .drawer h3{margin:0 0 14px;font-size:18px}
+  .drawer p{font-size:12px;color:#666;line-height:1.6;margin:0 0 12px}
+  .drawer label{display:block;font-size:13px;margin:12px 0 6px}
+  .drawer input[type="text"]{width:100%;padding:10px;border:1px solid #bbb;border-radius:8px;font-size:14px}
+  .drawer button{
+    width:100%;margin:5px 0;padding:10px 9px;border:1px solid #aaa;border-radius:8px;
+    background:#fff;cursor:pointer;font-size:14px;
+  }
+  .drawer button.primary{background:#202020;color:white;border-color:#202020}
+  .drawer .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .check{display:flex!important;gap:8px;align-items:flex-start;font-size:13px!important;line-height:1.45}
+  .check input{margin-top:3px}
+  .divider{height:1px;background:#ddd;margin:14px 0}
+  .drawer-handle{
+    position:fixed;z-index:61;left:0;top:50%;transform:translateY(-50%);
+    width:28px;height:84px;border:1px solid #bbb;border-left:0;border-radius:0 8px 8px 0;
+    background:#f7f7f7;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;box-shadow:2px 3px 10px rgba(0,0,0,.16);user-select:none;
+  }
+  .drawer.open + .drawer-handle{left:290px}
+
+  .legend{
+    position:absolute;z-index:4;right:20px;bottom:12px;
+    font-size:13px;color:rgba(30,30,30,.56);
+  }
+
+  @media(max-width:1260px){
+    .cards{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .board{min-height:1040px}
+  }
+  @media print{
+    .drawer,.drawer-handle,.sim-badge,.legend{display:none!important}
+    .scene{padding:0;background:#fff}
+    .board-shell{width:100%;min-width:0;border:8px solid #666;box-shadow:none}
+    .board{min-height:auto;padding:42px 24px 30px 82px}
+    .cards{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px 12px}
+  }
+
+  .batch-box{padding:10px;border:1px solid #d4d4d4;border-radius:9px;background:#fbfbfb;margin-bottom:10px}
+  .batch-box label{display:block;font-size:13px;margin:5px 0}
+  .batch-box input{width:100%;height:38px;border:1px solid #aaa;border-radius:7px;padding:0 9px;font-size:15px}
+  .batch-desc{font-size:11px;color:#727272;line-height:1.5;margin:4px 0 8px}
+
+</style>
+</head>
+<body>
+<div class="scene">
+  <div class="board-shell">
+    <div class="board">
+      <div class="watermark">教学训练模拟 · 非行车凭证</div>
+      <div class="sim-badge">教学训练模拟 · 非行车凭证</div>
+      <div class="route-plate" id="routePlate">甲站 —— 己站</div>
+
+      <section class="lane" id="upLane">
+        <div class="lane-label">上行</div>
+        <div class="cards" id="upCards"></div>
+      </section>
+
+      <section class="lane" id="downLane">
+        <div class="lane-label">下行</div>
+        <div class="cards" id="downCards"></div>
+      </section>
+
+      <div class="legend">点击任一揭示可放大查看 · 左侧隐藏教师控制</div>
+    </div>
+  </div>
+</div>
+
+<aside class="drawer" id="drawer">
+  <h3>教师控制</h3>
+  <p>用于课堂投屏。默认保留与现有“纸质运行揭示生成器”相匹配的 21171、21172 两条正确公布揭示，并随机生成若干干扰揭示。</p><p style="font-size:12px;color:#7a4c20;line-height:1.55"><b>设备变化类规则：</b>出站色灯信号机故障→绿色许可证发车；进站色灯信号机故障，停车接车→引导信号引导接车；办理通过→特定引导通过车站。</p>
+  <div style="font-size:12px;color:#777;line-height:1.5;margin:4px 0 10px">
+    当前为“大字投屏版”，浏览器保持 100% 缩放即可。若屏幕较小，可用浏览器缩放临时调整。
+  </div>
+  <div class="batch-box">
+    <div class="batch-desc"><b>批次联动训练</b><br>教师端和学生端输入同一批次码即可得到同一套标准揭示。学生 A/B/C 版本只改变交付揭示中的错误方式。</div>
+    <label for="teacherBatchCode">训练批次</label>
+    <input id="teacherBatchCode" type="text" value="01" maxlength="12" autocomplete="off">
+    <button class="primary" id="batchGenerateBtn">按批次生成公布监视</button>
+  </div>
+
+
+  <label>布告栏线路牌</label>
+  <input id="routeInput" type="text" value="甲站 —— 己站" />
+
+  <div class="divider"></div>
+
+  <label class="check"><input type="checkbox" id="keepTargets" checked><span>始终保留配套揭示 21171、21172（建议开启）</span></label>
+  <label class="check"><input type="checkbox" id="showAnswer"><span>教师答案模式：用黄色边框标出配套揭示</span></label>
+
+  <button id="regenBtn">随机生成其他练习</button>
+  <button id="resetBtn">恢复批次 01</button>
+
+  <div class="row">
+    <button id="upOnlyBtn">只看上行</button>
+    <button id="downOnlyBtn">只看下行</button>
+  </div>
+  <button id="bothBtn">恢复上下行同时显示</button>
+
+  <div class="divider"></div>
+  <button id="fullBtn">进入 / 退出全屏</button>
+  <button id="printBtn">打印 / 导出 PDF</button>
+</aside>
+<div class="drawer-handle" id="drawerHandle" title="教师控制">›</div>
+
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <div class="modal-toolbar">
+      <span>公布揭示放大查看</span>
+      <button id="closeModal">关闭</button>
+    </div>
+    <div class="big-notice" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const TARGETS = [
+  {
+    cmd:"21171", dir:"下行", target:true,
+    start:"2021 年 1 月 1 日 0 时 0 分",
+    end:"2021 年 12 月 31 日 23 时 59 分",
+    delivery:"2021年01月01日00时00分",
+    body:"通用线丙站下行出站信号机施工，丙站下行方向凭绿色许可证发车。",
+    emphasis:["2021 年 1 月 1 日 0 时 0 分","2021 年 12 月 31 日 23 时 59 分"],
+    green:["下行","绿色许可证"]
+  },
+  {
+    cmd:"21172", dir:"下行", target:true,
+    start:"2021 年 1 月 1 日 0 时 0 分",
+    end:"2021 年 12 月 31 日 23 时 59 分",
+    delivery:"2021年01月01日00时00分",
+    body:"通用线戊站下行进站色灯信号机故障，戊站办理停车接车时使用引导信号引导接车。",
+    emphasis:["2021 年 1 月 1 日 0 时 0 分","2021 年 12 月 31 日 23 时 59 分"],
+    green:["下行","引导信号"]
+  }
+];
+
+const POOLS = {
+  up:[
+    {cmd:"21011",dir:"上行",body:"通用线丁站上行进站色灯信号机故障，列车在丁站办理通过时按特定引导方式通过车站。"},
+    {cmd:"21012",dir:"上行",body:"通用线乙站至甲站区间线路施工，自K18+600至K20+200限速45 km/h。"},
+    {cmd:"21013",dir:"上行",body:"通用线丙站上行方向机车信号车载设备软件换装，出勤时核对设备版本标识。"},
+    {cmd:"21014",dir:"上行",body:"通用线戊站上行进站色灯信号机故障，列车在戊站办理停车接车时使用引导信号引导接车。"},
+    {cmd:"21015",dir:"上行",body:"通用线丁站至丙站区间自动闭塞设备施工，按施工期间规定的行车组织方式运行。"},
+    {cmd:"21016",dir:"上行",body:"通用线乙站上行方向2号道岔至站界施工，列车通过施工地段限速30 km/h。"}
+  ],
+  down:[
+    {cmd:"21201",dir:"下行",body:"通用线乙站至丙站区间线路施工，自K26+100至K31+500限速60 km/h。"},
+    {cmd:"21202",dir:"下行",body:"通用线丁站下行方向LKJ基础数据版本换装，出勤时核对数据版本、线路方向及交路范围。"},
+    {cmd:"21203",dir:"下行",body:"通用线丙站站内轨道电路设备检修，列车通过相关区段时按现场设备状态及调度命令执行。"},
+    {cmd:"21204",dir:"下行",body:"通用线丁站下行出站色灯信号机故障，丁站下行方向发车时凭绿色许可证发车。"},
+    {cmd:"21205",dir:"下行",body:"通用线戊站至己站区间受恶劣天气影响，自K42+300至K45+800限速45 km/h。"},
+    {cmd:"21206",dir:"下行",body:"通用线乙站下行方向列车运行监控装置相关数据文件换装，换装完成后核对版本标识。"}
+  ]
+};
+
+let boardState={up:[],down:[]};
+
+function deepClone(x){return JSON.parse(JSON.stringify(x))}
+function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function normalizeItem(it){
+  return {
+    start:"2021 年 1 月 1 日 0 时 0 分",
+    end:"2021 年 12 月 31 日 23 时 59 分",
+    delivery:"2021年01月01日00时00分",
+    emphasis:["2021 年 1 月 1 日 0 时 0 分","2021 年 12 月 31 日 23 时 59 分"],
+    green:[it.dir],
+    ...it
+  };
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"})[m])
+}
+function highlightText(text,item){
+  let out=escapeHtml(text);
+  (item.emphasis||[]).forEach(k=>{
+    const safe=escapeHtml(k);
+    out=out.split(safe).join(`<span class="red">${safe}</span>`);
+  });
+  (item.green||[]).forEach(k=>{
+    const safe=escapeHtml(k);
+    out=out.split(safe).join(`<span class="green">${safe}</span>`);
+  });
+  return out;
+}
+
+function noticeInner(item,index,big=false){
+  const valid = `${item.start} 至 ${item.end}`;
+  return `
+    <div class="notice-head">[${escapeHtml(item.cmd)}]-[第${index+1}条]</div>
+    <div class="notice-grid">
+      <div class="cell label">命令号</div>
+      <div class="cell strong">${escapeHtml(item.cmd)}</div>
+      <div class="cell label">起止日期</div>
+      <div class="cell">${highlightText(valid,item)}</div>
+
+      <div class="cell label">出示日期</div>
+      <div class="cell span3">${escapeHtml(item.delivery)}</div>
+
+      <div class="cell label">摘录日期</div>
+      <div class="cell span3"><span class="hint"> </span></div>
+
+      <div class="cell label content-label">内容</div>
+      <div class="cell content-cell">${highlightText(item.body,item)}</div>
+    </div>
+    <div class="sign-row">
+      <div>抄录人：</div><div><span class="stamp">调度员<br>张　三</span></div>
+      <div>复核人：</div><div><span class="stamp">调度员<br>李　四</span></div>
+      <div>撤除人：</div><div></div>
+    </div>`;
+}
+
+function cardHtml(item,index){
+  const magnetBlue=Math.random()<.22 ? " blue":"";
+  const small=Math.random()<.25 ? " small":"";
+  const answer=(document.getElementById("showAnswer").checked && item.target) ? " teacher-target":"";
+  return `<article class="notice${answer}" data-dir="${item.dir}" data-index="${index}" data-cmd="${item.cmd}">
+    <span class="magnet${magnetBlue}${small}"></span>
+    ${noticeInner(item,index)}
+  </article>`;
+}
+
+function renderBoard(){
+  const up=document.getElementById("upCards"),down=document.getElementById("downCards");
+  up.innerHTML=boardState.up.map((x,i)=>cardHtml(x,i)).join("");
+  down.innerHTML=boardState.down.map((x,i)=>cardHtml(x,i)).join("");
+  document.querySelectorAll(".notice").forEach(el=>el.addEventListener("click",()=>{
+    const dir=el.dataset.dir;
+    const item=boardState[dir==="上行"?"up":"down"][Number(el.dataset.index)];
+    document.getElementById("modalBody").innerHTML=noticeInner(item,Number(el.dataset.index),true);
+    document.getElementById("modal").classList.add("open");
+  }));
+}
+
+function defaultBoard(){
+  boardState.up=shuffle(POOLS.up).slice(0,4).map(normalizeItem);
+  boardState.down=[
+    ...TARGETS.map(normalizeItem),
+    ...shuffle(POOLS.down).slice(0,2).map(normalizeItem)
+  ];
+  boardState.down=shuffle(boardState.down);
+  renderBoard();
+}
+
+function regenerate(){
+  const keep=document.getElementById("keepTargets").checked;
+  const upCount=3+Math.floor(Math.random()*2);
+  const downCount=3+Math.floor(Math.random()*2);
+  boardState.up=shuffle(POOLS.up).slice(0,upCount).map(normalizeItem);
+  let d=shuffle(POOLS.down).slice(0,Math.max(1,downCount-(keep?2:0))).map(normalizeItem);
+  if(keep)d.push(...TARGETS.map(normalizeItem));
+  boardState.down=shuffle(d);
+  renderBoard();
+}
+
+document.getElementById("routeInput").addEventListener("input",e=>{
+  document.getElementById("routePlate").textContent=e.target.value || "甲站 —— 己站";
+});
+document.getElementById("regenBtn").addEventListener("click",regenerate);
+document.getElementById("resetBtn").addEventListener("click",()=>{
+  document.getElementById("keepTargets").checked=true;
+  document.getElementById("showAnswer").checked=false;
+  document.getElementById("routeInput").value="甲站 —— 己站";
+  document.getElementById("routePlate").textContent="甲站 —— 己站";
+  document.getElementById("upLane").style.display="";
+  document.getElementById("downLane").style.display="";
+  defaultBoard();
+});
+document.getElementById("showAnswer").addEventListener("change",renderBoard);
+
+document.getElementById("upOnlyBtn").addEventListener("click",()=>{
+  document.getElementById("upLane").style.display="";
+  document.getElementById("downLane").style.display="none";
+});
+document.getElementById("downOnlyBtn").addEventListener("click",()=>{
+  document.getElementById("upLane").style.display="none";
+  document.getElementById("downLane").style.display="";
+});
+document.getElementById("bothBtn").addEventListener("click",()=>{
+  document.getElementById("upLane").style.display="";
+  document.getElementById("downLane").style.display="";
+});
+
+document.getElementById("fullBtn").addEventListener("click",async()=>{
+  try{
+    if(!document.fullscreenElement) await document.documentElement.requestFullscreen();
+    else await document.exitFullscreen();
+  }catch(e){}
+});
+document.getElementById("printBtn").addEventListener("click",()=>window.print());
+
+const drawer=document.getElementById("drawer"),handle=document.getElementById("drawerHandle");
+handle.addEventListener("click",()=>{
+  drawer.classList.toggle("open");
+  handle.textContent=drawer.classList.contains("open")?"‹":"›";
+});
+document.querySelector(".scene").addEventListener("mousedown",()=>{
+  if(drawer.classList.contains("open")){drawer.classList.remove("open");handle.textContent="›"}
+});
+
+document.getElementById("closeModal").addEventListener("click",()=>document.getElementById("modal").classList.remove("open"));
+document.getElementById("modal").addEventListener("click",e=>{
+  if(e.target.id==="modal")e.currentTarget.classList.remove("open");
+});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape")document.getElementById("modal").classList.remove("open");
+});
+
+defaultBoard();
+</script>
+
+<script>
+
+function batchHash32(str){
+  let h=2166136261>>>0;
+  str=String(str||"01").trim()||"01";
+  for(let i=0;i<str.length;i++){
+    h^=str.charCodeAt(i);
+    h=Math.imul(h,16777619);
+  }
+  return h>>>0;
+}
+function batchRng(seed){
+  let a=seed>>>0;
+  return function(){
+    a=(a+0x6D2B79F5)>>>0;
+    let t=a;
+    t=Math.imul(t^(t>>>15),t|1);
+    t^=t+Math.imul(t^(t>>>7),t|61);
+    return ((t^(t>>>14))>>>0)/4294967296;
+  }
+}
+function batchShuffle(arr,rnd){
+  arr=[...arr];
+  for(let i=arr.length-1;i>0;i--){
+    const j=Math.floor(rnd()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+const BATCH_START="2021 年 1 月 1 日 0 时 0 分";
+const BATCH_END="2021 年 12 月 31 日 23 时 59 分";
+const BATCH_DELIVERY="2021年01月01日00时00分";
+
+const BATCH_POOL_UP=[
+  "通用线丁站上行进站色灯信号机故障，列车在丁站办理通过时按特定引导方式通过车站。",
+  "通用线乙站至甲站区间线路施工，自K18+600至K20+200限速45 km/h。",
+  "通用线丙站上行方向机车信号车载设备软件换装，出勤时核对设备版本标识。",
+  "通用线戊站上行进站色灯信号机故障，列车在戊站办理停车接车时使用引导信号引导接车。",
+  "通用线丁站至丙站区间自动闭塞设备施工，按施工期间规定的行车组织方式运行。",
+  "通用线乙站上行方向2号道岔至站界施工，列车通过施工地段限速30 km/h。"
+];
+const BATCH_POOL_DOWN=[
+  "通用线乙站至丙站区间线路施工，自K26+100至K31+500限速60 km/h。",
+  "通用线丁站下行方向LKJ基础数据版本换装，出勤时核对数据版本、线路方向及交路范围。",
+  "通用线丙站站内轨道电路设备检修，列车通过相关区段时按现场设备状态及调度命令执行。",
+  "通用线丁站下行出站色灯信号机故障，丁站下行方向发车时凭绿色许可证发车。",
+  "通用线戊站至己站区间受恶劣天气影响，自K42+300至K45+800限速45 km/h。",
+  "通用线乙站下行方向列车运行监控装置相关数据文件换装，换装完成后核对版本标识。"
+];
+
+function makeBatchStandard(batchCode){
+  const code=(String(batchCode||"01").trim()||"01").toUpperCase();
+  if(code==="01" || code==="1"){
+    return {
+      code:"01",
+      activeDir:"下行",
+      route:"甲站至己站　下行",
+      boardTitle:"甲站 —— 己站",
+      up:[
+        {cmd:"21011",dir:"上行",body:BATCH_POOL_UP[0]},
+        {cmd:"21012",dir:"上行",body:BATCH_POOL_UP[1]},
+        {cmd:"21013",dir:"上行",body:BATCH_POOL_UP[2]},
+        {cmd:"21014",dir:"上行",body:BATCH_POOL_UP[4]}
+      ],
+      down:[
+        {cmd:"21171",dir:"下行",body:"通用线丙站下行出站信号机施工，丙站下行方向凭绿色许可证发车。"},
+        {cmd:"21172",dir:"下行",body:"通用线戊站下行进站色灯信号机故障，戊站办理停车接车时使用引导信号引导接车。"},
+        {cmd:"21173",dir:"下行",body:BATCH_POOL_DOWN[0]},
+        {cmd:"21174",dir:"下行",body:BATCH_POOL_DOWN[1]}
+      ]
+    };
+  }
+  const seed=batchHash32("TRAIN:"+code),rnd=batchRng(seed);
+  const activeDir=rnd()<0.5?"上行":"下行";
+  const base=21000+(seed%700);
+  const upBodies=batchShuffle(BATCH_POOL_UP,rnd).slice(0,4);
+  const downBodies=batchShuffle(BATCH_POOL_DOWN,rnd).slice(0,4);
+  const up=upBodies.map((body,i)=>({cmd:String(base+i),dir:"上行",body}));
+  const down=downBodies.map((body,i)=>({cmd:String(base+10+i),dir:"下行",body}));
+  return {
+    code,
+    activeDir,
+    route:activeDir==="下行"?"甲站至己站　下行":"己站至甲站　上行",
+    boardTitle:"甲站 —— 己站",
+    up,down
+  };
+}
+function completeBatchItem(it){
+  return {
+    cmd:it.cmd,
+    dir:it.dir,
+    start:BATCH_START,
+    end:BATCH_END,
+    delivery:BATCH_DELIVERY,
+    body:it.body,
+    emphasis:[BATCH_START,BATCH_END],
+    green:[it.dir],
+    target:!!it.target,
+    source:"batch"
+  };
+}
+function makeStudentBatchPacket(batchCode,version){
+  const std=makeBatchStandard(batchCode);
+  const v=(String(version||"A").toUpperCase());
+  const key=std.activeDir==="上行"?"up":"down";
+  const opposite=std.activeDir==="上行"?"down":"up";
+  let items=std[key].map(x=>completeBatchItem({...x,target:true}));
+  const rnd=batchRng(batchHash32("STUDENT:"+std.code+":"+v));
+  const idx=()=>Math.floor(rnd()*items.length);
+
+  if(v==="A"){
+    if(items.length){
+      const i=idx();
+      items[i].cmd=String(Number(items[i].cmd)+7);
+      items[i]._trainingError="命令号不一致";
+    }
+    if(items.length>2){
+      let j=idx();
+      const removed=items.splice(j,1)[0];
+    }
+  }else if(v==="B"){
+    if(items.length){
+      const i=idx(),from=std.activeDir,to=std.activeDir==="上行"?"下行":"上行";
+      items[i].body=items[i].body.includes(from)?items[i].body.replaceAll(from,to):items[i].body.replace("方向","反方向");
+      items[i]._trainingError="方向或内容不一致";
+    }
+    const extra=completeBatchItem({...std[opposite][Math.floor(rnd()*std[opposite].length)],target:false});
+    extra._trainingError="非本趟进路的多余揭示";
+    items.push(extra);
+  }else if(v==="C"){
+    if(items.length){
+      const i=idx();
+      items[i].end="2021 年 12 月 31 日 22 时 59 分";
+      items[i]._trainingError="有效时间不一致";
+    }
+    if(items.length>1){
+      let j=idx();
+      if(items[j]._trainingError && items.length>1) j=(j+1)%items.length;
+      const b=items[j].body;
+      const p=b.indexOf("，");
+      items[j].body=p>8?b.slice(0,p)+"。":b.slice(0,Math.max(10,Math.floor(b.length*.58)));
+      items[j]._trainingError="内容缺失";
+    }
+  }else{
+    // D：完整正确版，便于教师演示
+  }
+  return {
+    route:std.route,
+    delivery:"交付日期：2021 年 1 月 1 日 0：00",
+    valid:"有效时间至 2021 年 12 月 31 日 23：59 分",
+    items,
+    batch:std.code,
+    version:v,
+    activeDir:std.activeDir
+  };
+}
+
+
+function applyLinkedTeacherBatch(){
+  const input=document.getElementById("teacherBatchCode");
+  const std=makeBatchStandard(input.value.trim()||"01");
+  input.value=std.code;
+  document.getElementById("routeInput").value=std.boardTitle;
+  document.getElementById("routePlate").textContent=std.boardTitle;
+  boardState.up=std.up.map(x=>completeBatchItem({...x,target:std.activeDir==="上行"}));
+  boardState.down=std.down.map(x=>completeBatchItem({...x,target:std.activeDir==="下行"}));
+  const badge=document.querySelector(".sim-badge");
+  if(badge)badge.textContent=`训练批次 ${std.code} · 学生核对方向：${std.activeDir} · 教学模拟`;
+  renderBoard();
+  if(typeof closeTeacherDrawer==="function")closeTeacherDrawer();
+}
+document.getElementById("batchGenerateBtn").addEventListener("click",applyLinkedTeacherBatch);
+document.getElementById("teacherBatchCode").addEventListener("keydown",e=>{if(e.key==="Enter")applyLinkedTeacherBatch()});
+window.addEventListener("DOMContentLoaded",()=>setTimeout(applyLinkedTeacherBatch,0));
+</script>
+
+
+<script>
+document.getElementById("resetBtn").addEventListener("click",()=>{
+  document.getElementById("teacherBatchCode").value="01";
+  setTimeout(applyLinkedTeacherBatch,0);
+});
+</script>
+
+</body>
+</html>
